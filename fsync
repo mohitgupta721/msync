@@ -1,0 +1,72 @@
+#!/bin/bash
+
+src=$1
+dest=$2
+user=$3
+pass=$4
+#$dest_ip=$(echo $2 | cut -d ':' -f1)
+#dest_path=$(echo $2 | cut -d ':' -f2)
+#dest_path=$(echo $dest_path | rev | cut -d '/' -f2- | rev)
+
+if [[ $# -le 2 ]] ; then
+    echo "USAGE: $0 <source path> <RemoteIp> <ftp-username> <password>"
+    exit 1
+fi
+
+
+echo "FTP SERVER...... $dest"
+sleep 1s
+size_of_dir=`du -s $src | awk '{print $1}'`
+echo "size of source file/directory is $size_of_dir bytes"
+
+##### method to copy data
+
+function copy_data ()
+{
+#echo "function called"
+if [ -d $1 ]
+then
+	for i in $1/*/
+	do
+		local file=$(basename "$i")
+		
+		if [ -d $i ]
+		then
+			echo "found directory $file"
+			copy_data $i 
+		else
+			ftp -inv $dest <<EOF
+user $user $pass
+mput $i
+bye  
+EOF
+
+			#cat $i | ssh $dest_ip "cat >$dest_path/$file"
+		fi
+		
+	done
+
+elif [ -f $1 ]
+then
+	local file=$(basename "$1")
+	echo "copying.........$file"
+        ftp -inv $dest <<EOF
+	user $user $pass
+	mput $1
+EOF
+	#cat $1 | ssh $dest_ip "cat >$dest_path/$file"
+fi
+}
+
+
+## checking if size is greater or les than 10GB
+if ((size_of_dir >10000000))
+then
+	echo "file size/dir size if larger than 10GB "
+	exit 1
+elif ((size_of_dir <=10000000))
+then
+	echo "Initializing transfer......."
+	copy_data $src $dest
+fi
+
